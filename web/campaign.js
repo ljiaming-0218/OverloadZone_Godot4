@@ -1,5 +1,5 @@
 'use strict';
-// Twelve-minute stage campaign. No runtime packages or external APIs.
+// Twelve-minute survival campaign. No runtime packages or external APIs.
 const SHOW = {
   title: '下班大作战',
   duration: 900,
@@ -54,14 +54,14 @@ function timeLabel(t){return `${String(Math.floor(t/60)).padStart(2,'0')}:${Stri
 function skillName(id){return SKILLS.find(s=>s.id===id)?.name||id;}
 function themeIntro(){
   menu(SHOW.title,'离下班还有一分钟，所有办公用品突然活了。',
-    '<strong>上传你的脸 → 打穿加班怪 → 准点下班</strong><br>第 3 / 7 / 12 分钟迎战 Boss；前两幕获胜后继续。<br>每 90 秒出现补给，靠近后按 E 或点「补给」。<br><span class="desktop-help">WASD 移动 · SPACE 冲刺 · Q 掀桌 · ESC 构筑手册</span><span class="touch-help">左侧摇杆移动 · 右侧冲刺 / 怒气 · 自动射击</span>',
+    '<strong>上传你的脸 → 打穿加班怪 → 准点下班</strong><br>第 3 / 7 / 12 分钟迎战 Boss；直接开打。<br>绕后破掩护 · 冲刺打断橙色蓄力。<br>每 90 秒出现补给，靠近后按 E 或点「补给」。<br><span class="desktop-help">WASD 移动 · SPACE 冲刺 · Q 掀桌 · ESC 构筑手册</span><span class="touch-help">左侧摇杆移动 · 右侧冲刺 / 怒气 · 自动射击</span>',
     '开始下班',()=>begin());
   const record=readRecord();
   panel.querySelector('.micro').textContent=`单局约 12–15 分钟 · ${record.wins||0} 次通关 · 最长 ${timeLabel(record.bestTime||0)}`;
   const selectors=document.createElement('div');selectors.className='difficulty';
   selectors.innerHTML=`<button data-mode="tour" aria-pressed="${selectedDifficulty==='tour'}">准点下班<small>标准挑战 · 三幕成长</small></button><button data-mode="hard" aria-pressed="${selectedDifficulty==='hard'}">地狱加班<small>更密集弹幕 · 强化敌人</small></button>`;
   panel.querySelector('#action').before(selectors);
-  const extras=document.createElement('div');extras.className='menu-extras';extras.innerHTML='<button class="secondary" id="portrait-settings">更换头像</button><button class="secondary" id="skit-demo">看看同事发什么疯</button>';selectors.after(extras);panel.querySelector('#portrait-settings').onclick=portraitSettings;panel.querySelector('#skit-demo').onclick=()=>showEpisode('opening',themeIntro,{reward:false});refreshPortraitBadges();
+  const extras=document.createElement('div');extras.className='menu-extras';extras.innerHTML='<button class="secondary" id="portrait-settings">更换头像</button>';selectors.after(extras);panel.querySelector('#portrait-settings').onclick=portraitSettings;refreshPortraitBadges();
   selectors.querySelectorAll('button').forEach(button=>button.onclick=()=>{
     selectedDifficulty=button.dataset.mode;
     selectors.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
@@ -118,17 +118,17 @@ function bossDefeated(e){
   heal(20);G.energy=100;
   if(e.chapter===2){end(true);return}
   G.xp+=Math.ceil(G.need*.45);
-  showEpisode('break-'+e.chapter,()=>offerChoices('茶水间 · 摸鱼战利品',`${e.name} 已完成 · 时间暂停，选择一件永久遗物`,[
+  offerChoices('关卡突破 · 选择遗物',`${e.name} 已击破 · 时间暂停，选择一件永久遗物`,[
     {id:'power',kind:'relic',name:'键盘战神',desc:'全局伤害永久 +20%，适合远程与连锁构筑'},
     {id:'guard',kind:'relic',name:'工伤保险',desc:'生命上限 +30、恢复 40 生命，获得 30 护盾'},
     {id:'tempo',kind:'relic',name:'拒绝内耗',desc:'永久射速 +15%，升级重选次数 +1'},
-  ]));
+  ]);
 }
 function startBoss(chapter){
   const data=SHOW.bosses[chapter];spawn('boss',clamp(G.px,-1250,1250),clamp(G.py-330,-800,800));
   const e=G.enemies.at(-1);Object.assign(e,{chapter,name:data.name,hp:data.hp*difficulty(),max:data.hp*difficulty(),phase:1,attack:0,fire:1.3,elite:false});
   G.bossIndex=chapter+1;G.bossActive=true;G.boss=true;
-  G.hostile=[];notice(data.name+' · 登场',3);sound('boom');showEpisode('boss-'+chapter,()=>{});
+  G.hostile=[];notice(data.name+' · 登场',3);sound('boom');
 }
 function waveEvent(){
   G.eventCount++;G.eventTimer=18;const kind=(G.eventCount-1)%3;
@@ -154,7 +154,7 @@ function campaignTick(dt){
   if(state!=='playing')return;
   updateHazards(dt);
   if(state!=='playing')return;
-  tickTheatre(dt);
+  tickCombat(dt);
   if(state!=='playing')return;
   updateAdvancedWeapons(dt);
   if(G.t>=SHOW.duration&&state==='playing')end(false);
@@ -173,7 +173,8 @@ function spawnCampaignWave(){
   }
 }
 function updateEnemyStage(e,dt){
-  updateBackstageEnemy(e,dt);
+  updateOfficeEnemy(e,dt);
+  if(e.stagger>0)return;
   if(e.type==='charger'){
     e.chargeCD=(e.chargeCD??2)-dt;
     if(e.chargeCD<=0&&(e.chargeWarning||0)<=0&&(e.chargeRun||0)<=0){e.charges=(e.charges||0)+1;e.chargeWarning=.9;e.chargeAngle=Math.atan2(G.py-e.y,G.px-e.x);e.moveLock=true}
@@ -188,7 +189,7 @@ function updateEnemyStage(e,dt){
 function bossAttack(e){
   const phase=e.phase||1,chapter=e.chapter||0,angle=Math.atan2(G.py-e.y,G.px-e.x);
   e.attack=(e.attack||0)+1;
-  if(officeBossSpecial(e))return;
+  if(e.attack%4===0){e.bossCast=1.25;e.castDamage=0;e.breakThreshold=110+(e.chapter||0)*100;e.moveLock=true;e.fire=4;return}
   if(e.attack%3===1){
     const count=12+chapter*4+phase*2;
     for(let i=0;i<count;i++){const a=i*TAU/count+G.t*.24;hostileBullet(e.x+Math.cos(a)*48,e.y+Math.sin(a)*48,Math.cos(a),Math.sin(a),155+phase*20+chapter*10,12+chapter*2)}
@@ -204,15 +205,12 @@ function bossAttack(e){
     e.fire=2.4;
   }
 }
-function conductorAttack(e){
-  const a=Math.atan2(G.py-e.y,G.px-e.x);for(let j=-2;j<=2;j++){const b=a+j*.25;hostileBullet(e.x,e.y,Math.cos(b),Math.sin(b),225,11)}
-  e.fire=e.elite?1.1:1.9;
-}
+function conductorAttack(e){beginCommandCast(e)}
 function addHazard(h){if(G.hazards.length<36)G.hazards.push({...h,age:0,done:false})}
 function segmentDistance2(px,py,h){const dx=h.x2-h.x,dy=h.y2-h.y,t=clamp(((px-h.x)*dx+(py-h.y)*dy)/(dx*dx+dy*dy||1),0,1);return (px-h.x-t*dx)**2+(py-h.y-t*dy)**2}
 function updateHazards(dt){
   for(const h of G.hazards){h.age+=dt;if(h.age<h.delay)continue;
-    if(h.kind==='spawn'){if(!h.done&&G.enemies.length<215)spawn(h.type,h.x,h.y);h.done=true;continue}
+    if(h.kind==='spawn'){if(h.ownerId&&!findTacticalEnemy(h.ownerId)?.live){h.done=true;continue}if(!h.done&&G.enemies.length<215)spawn(h.type,h.x,h.y);h.done=true;continue}
     const ringDistance=(G.px-h.x)**2+(G.py-h.y)**2;
     const hit=h.kind==='ring'?ringDistance>(h.inner-14)**2&&ringDistance<(h.r+14)**2:h.kind==='lane'?segmentDistance2(G.px,G.py,h)<(h.r+14)**2:dist2({x:G.px,y:G.py},h)<(h.r+14)**2;
     if(hit&&G.dashTime<=0)damagePlayer(h.damage);
@@ -248,15 +246,15 @@ function updateAdvancedWeapons(dt){
 }
 function themePause(){
   if(state!=='playing')return;clearInput();state='suspended';overlay.classList.remove('hidden');
-  panel.innerHTML=`<h1>摸鱼暂停</h1><p class="sub">${SHOW.acts[actIndex()]} · ${timeLabel(G.t)} · ${G.difficulty==='hard'?'加班':'下班'}</p><div class="build-book">${RECIPES.map(r=>`<div><strong>${G.evolutions[r.id]?'已进化 · ':''}${r.name}</strong><small>${skillName(r.a)} ${G.up[r.a]}/${r.an} + ${skillName(r.b)} ${G.up[r.b]}/${r.bn}</small><small>${r.desc}</small></div>`).join('')}</div><p class="micro">已获 ${G.relics.length} 件遗物 · 重选 ${G.rerolls} 次 · 补给 ${G.supplyOpened} 次<br>Q 掀桌 / SPACE 冲刺 / E 补给</p><button class="mainbtn" id="resume">继续对决</button>`;
+  panel.innerHTML=`<h1>摸鱼暂停</h1><p class="sub">${SHOW.acts[actIndex()]} · ${timeLabel(G.t)} · ${G.difficulty==='hard'?'加班':'下班'}</p><div class="tactics-help"><strong>战术反制</strong><br>青色连线：绕后 / 重击破掩护<br>橙色蓄力：冲刺贴身或单次重击 80+ 打断<br>Boss 蓄力：贴身冲刺或打满黄色破招条<br>破招后短暂硬直，承受伤害 +25%</div><div class="build-book">${RECIPES.map(r=>`<div><strong>${G.evolutions[r.id]?'已进化 · ':''}${r.name}</strong><small>${skillName(r.a)} ${G.up[r.a]}/${r.an} + ${skillName(r.b)} ${G.up[r.b]}/${r.bn}</small><small>${r.desc}</small></div>`).join('')}</div><p class="micro">已获 ${G.relics.length} 件遗物 · 重选 ${G.rerolls} 次 · 补给 ${G.supplyOpened} 次 · 打断 ${G.interrupts} 次<br>Q 掀桌 / SPACE 冲刺 / E 补给</p><button class="mainbtn" id="resume">继续对决</button>`;
   panel.querySelector('#resume').onclick=()=>{clearInput();state='playing';overlay.classList.add('hidden');sound('collect')};
 }
 function themeEnd(win){
   if(state!=='playing'||G.ending)return;G.ending=true;saveRecord(win);clearInput();
   const showResult=()=>menu(win?'打卡成功！':'下班失败',`${timeLabel(G.t)} · ${G.kills} 次击破 · 等级 ${G.lvl}`,
-    `<strong>${win?'门禁打卡成功，这个班你是真的下了。':G.t>=SHOW.duration?'15 分钟已到，你又被留在了工位。':'下次记得：看红线、躲急件、别接无效会议。'}</strong><br>完成 ${G.bossesDefeated}/3 场 Boss · ${Object.keys(G.evolutions).length} 项组合进化<br>吸弹 ${G.absorbed} 枚 · 怒气 ${G.overloads} 次 · 最高爆发 ${G.bestBurst}<br>补给 ${G.supplyOpened} 次 · 遗物 ${G.relics.length} 件`,
+    `<strong>${win?'门禁打卡成功，这个班你是真的下了。':G.t>=SHOW.duration?'15 分钟已到，你又被留在了工位。':'下次记得：看红线、躲急件、别接无效会议。'}</strong><br>完成 ${G.bossesDefeated}/3 场 Boss · ${Object.keys(G.evolutions).length} 项组合进化<br>打断 ${G.interrupts} 次 · 吸弹 ${G.absorbed} 枚 · 怒气 ${G.overloads} 次 · 最高爆发 ${G.bestBurst}<br>补给 ${G.supplyOpened} 次 · 遗物 ${G.relics.length} 件`,
     '再来一场',()=>themeIntro());
-  if(win)showEpisode('ending',showResult,{reward:false});else showResult();
+  showResult();
 }
 function drawStageWorld(){
   // Warning geometry uses exactly the same radius / segment as the hit test.
@@ -286,8 +284,11 @@ function drawStageHud(width,height,small,pad){
   const boss=G.enemies.find(e=>e.live&&e.type==='boss');
   if(boss){
     const bw=Math.min(width-pad*2,600),left=(width-bw)/2;
+    const hasTell=boss.bossCast>0||boss.stagger>0||boss.recovery>0;
+    rect(left-7,small?158:152,bw+14,hasTell?73:47,'#fff9eeed','#c9b99a');
     label(`${boss.name} · 阶段 ${boss.phase||1}/3`,width/2,small?177:171,small?14:16,'#9f4d4a','center');
     bar(left,small?187:182,bw,small?9:10,boss.hp/boss.max,'#ef558a');
+    drawBossTacticalHud(boss,width,small,pad);
   }else if(G.eventTimer>0)label(`${G.eventName} · ${Math.ceil(G.eventTimer)}s`,width/2,small?182:176,small?14:16,'#805621','center');
   if(G.supplies.length)label(`补给 ${G.supplies.length} · ${G.bossesDefeated}/3 幕`,pad,height-(touchMode?230:80),small?14:15,'#805621');
 }

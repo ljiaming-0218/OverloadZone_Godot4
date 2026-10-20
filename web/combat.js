@@ -1,84 +1,38 @@
 'use strict';
-// A fictional backstage comedy; dialogue never advances the combat clock.
-const EPISODES=OFFICE_EPISODES;
+// Combat effects and local avatar storage. No dialogue or narrative state.
 const ENEMY_LABELS=OFFICE_ENEMIES;
-let activeEpisode=null;
 const portraitImages={ma:null,ding:null};
-function theatreState(){return {storySeen:{},skillVfx:[],coffeeTimer:3,paperTimer:1.2,portraitNote:false};}
-function showEpisode(id,after,options={}){
-  const episode=EPISODES[id];if(!episode){after?.();return}
-  clearInput();G.storySeen[id]=true;
-  activeEpisode={id,index:0,after,reward:options.reward!==false,selecting:false,finished:false};
-  state='story';overlay.classList.remove('hidden');renderEpisode();
-}
+function combatState(){return {skillVfx:[],coffeeTimer:3,paperTimer:1.2};}
 function portraitMarkup(role){return `<div class="portrait-badge" data-portrait="${role}"><span>${role==='ma'?'我':role==='ding'?'怪':'友'}</span></div>`;}
-function renderEpisode(){
-  if(!activeEpisode)return;const episode=EPISODES[activeEpisode.id],line=episode.lines[activeEpisode.index];
-  const selecting=activeEpisode.selecting,role=['组长','总监','老板'].includes(line[0])?'ding':line[0]==='我'?'ma':'crew';
-  panel.innerHTML=`<div class="script-label">虚构打工小剧场</div><h1>${episode.title}</h1><div class="dialogue-stage">${portraitMarkup(role)}<div><strong>${selecting?'下班前的选择':line[0]}</strong><p>${selecting?'先做点什么？':line[1]}</p></div></div>${selecting?`<div class="story-choices">${episode.choices.map((item,i)=>`<button class="choice" data-branch="${i}"><strong>${item[0]}</strong><small>${item[1]}</small></button>`).join('')}</div>`:`<div class="dialogue-actions"><button class="secondary" id="story-skip">跳过对白</button><button class="mainbtn" id="story-next">${activeEpisode.index===episode.lines.length-1?(episode.choices?'做个选择':'继续下班'):'下一句'}</button></div>`}<p class="micro">对白为虚构创作 · 战斗已暂停${selecting?'':' · Enter 下一句 / Esc 跳过'}</p>`;
-  if(selecting)panel.querySelectorAll('[data-branch]').forEach(button=>button.onclick=()=>finishEpisode(Number(button.dataset.branch)));
-  else{panel.querySelector('#story-next').onclick=nextEpisodeLine;panel.querySelector('#story-skip').onclick=skipEpisode}
-  refreshPortraitBadges();
-}
-function nextEpisodeLine(){
-  if(!activeEpisode||activeEpisode.selecting)return;
-  const episode=EPISODES[activeEpisode.id];
-  if(activeEpisode.index<episode.lines.length-1){activeEpisode.index++;renderEpisode()}
-  else if(episode.choices){activeEpisode.selecting=true;renderEpisode()}
-  else finishEpisode();
-}
-function skipEpisode(){
-  if(!activeEpisode)return;const episode=EPISODES[activeEpisode.id];
-  if(episode.choices){activeEpisode.index=episode.lines.length-1;activeEpisode.selecting=true;renderEpisode()}
-  else finishEpisode();
-}
-function finishEpisode(branch=0){
-  if(!activeEpisode||activeEpisode.finished)return;
-  const episode=activeEpisode;episode.finished=true;activeEpisode=null;
-  if(episode.reward&&episode.id==='opening'){
-    if(branch===1)G.shield=Math.min(75,G.shield+15);else G.energy=Math.min(100,G.energy+20);
-  }
-  clearInput();state='playing';overlay.classList.add('hidden');episode.after?.();
-}
 function extraEnemyDamage(enemy,damage,origin){
-  if(enemy.type!=='shield')return damage;
-  if(damage>=80){enemy.guardDown=2.5;skillEffect('burst',enemy.x,enemy.y,70);return damage}
-  if(enemy.guardDown>0)return damage;
-  const source=origin||{x:G.px,y:G.py},towardPlayer=norm(G.px-enemy.x,G.py-enemy.y),incoming=norm(source.x-enemy.x,source.y-enemy.y);
-  if(towardPlayer.x*incoming.x+towardPlayer.y*incoming.y>.1){skillEffect('slash',enemy.x,enemy.y,45);return damage*.4}
-  return damage;
+  const source=origin||{x:G.px,y:G.py};
+  if(enemy.type==='shield'){
+    if(damage>=80){enemy.guardDown=2.5;skillEffect('burst',enemy.x,enemy.y,70);return damage}
+    if(enemy.guardDown>0)return damage;
+    const facing=enemy.guardAngle??Math.atan2(G.py-enemy.y,G.px-enemy.x),incoming=Math.atan2(source.y-enemy.y,source.x-enemy.x);
+    if(Math.abs(angleDelta(facing,incoming))<1.2){skillEffect('slash',enemy.x,enemy.y,45);return damage*.4}
+    return damage;
+  }
+  return coverDamage(enemy,damage,origin);
 }
-function updateBackstageEnemy(enemy,dt){
-  officeEnemyTick(enemy,dt);
+function updateOfficeEnemy(enemy,dt){
   enemy.guardDown=Math.max(0,(enemy.guardDown||0)-dt);
-  if(enemy.type==='sniper'&&enemy.snipeWarning>0){
-    enemy.snipeWarning-=dt;enemy.moveLock=true;
-    if(enemy.snipeWarning<=0){
-      const a=enemy.snipeAngle;hostileBullet(enemy.x,enemy.y,Math.cos(a),Math.sin(a),465,17);enemy.moveLock=false;
-      skillEffect('burst',enemy.x,enemy.y,42,a);
-    }
-  }
+  tacticalEnemyTick(enemy,dt);
+  if(enemy.stagger>0)return;
+  officeEnemyTick(enemy,dt);
+  if(enemy.recovery>0||enemy.commandedBy&&findTacticalEnemy(enemy.commandedBy)?.commandCast>0)enemy.moveLock=true;
 }
-function backstageAttack(enemy){
+function officeSupportAttack(enemy){
   if(['clock','printer'].includes(enemy.type)){officeEnemyAttack(enemy);return}
-  if(enemy.type==='sniper'){
-    enemy.snipeAngle=Math.atan2(G.py-enemy.y,G.px-enemy.x);enemy.snipeWarning=1.05;enemy.moveLock=true;enemy.fire=3.0;
-  }else if(enemy.type==='healer'){
-    const allies=G.enemies.filter(e=>e.live&&e!==enemy&&e.type!=='boss'&&e.hp<e.max&&dist2(e,enemy)<260**2).slice(0,4);
-    for(const ally of allies){ally.hp=Math.min(ally.max,ally.hp+ally.max*.1);skillEffect('heal',ally.x,ally.y,65);G.beams.push({x:enemy.x,y:enemy.y,xx:ally.x,yy:ally.y,t:.22,color:'#dd7195'})}
-    enemy.fire=2.7;
-  }else if(enemy.type==='summoner'){
-    for(let i=0;i<2;i++)addHazard({kind:'spawn',x:clamp(enemy.x+rand(-65,65),-1430,1430),y:clamp(enemy.y+rand(-65,65),-1030,1030),r:24,delay:1.1,life:.15,type:i?'runner':'shooter'});
-    enemy.fire=5;
-  }
+  beginSupportCast(enemy);
 }
 function skillEffect(kind,x,y,r=100,angle=0){
   if(!G?.skillVfx||G.skillVfx.length>=48)return;
   const duration={slash:.35,burst:.5,sonic:.75,heal:.7,coffee:1.2}[kind]||.5;
   G.skillVfx.push({kind,x,y,r,angle,t:duration,max:duration});
 }
-function tickTheatre(dt){
-  officeTick(dt);
+function tickCombat(dt){
+  officeTick(dt);tacticsTick(dt);
   for(const effect of G.skillVfx)effect.t-=dt;G.skillVfx=G.skillVfx.filter(e=>e.t>0);
   G.coffeeTimer-=dt;G.paperTimer-=dt;
   if(G.up.coffee&&G.coffeeTimer<=0){
@@ -112,15 +66,15 @@ function drawSkillEffects(){
   }
 }
 function drawEnemyDetails(enemy){
-  drawOfficeWarning(enemy);
+  drawOfficeWarning(enemy);drawTacticalDetails(enemy);
   if(enemy.type==='shield'&&!(enemy.guardDown>0)){
-    const a=Math.atan2(G.py-enemy.y,G.px-enemy.x);arc(enemy.x,enemy.y,enemy.r+9,'#40a6bb',6,a-1.2,a+1.2);
+    const a=enemy.guardAngle??Math.atan2(G.py-enemy.y,G.px-enemy.x);arc(enemy.x,enemy.y,enemy.r+9,'#40a6bb',6,a-1.2,a+1.2);
   }
   if(enemy.type==='sniper'&&enemy.snipeWarning>0){
-    ctx.save();ctx.strokeStyle='#d1544a';ctx.lineWidth=2;ctx.setLineDash([12,9]);ctx.beginPath();ctx.moveTo(enemy.x,enemy.y);ctx.lineTo(enemy.x+Math.cos(enemy.snipeAngle)*680,enemy.y+Math.sin(enemy.snipeAngle)*680);ctx.stroke();ctx.restore();
+    ctx.save();ctx.strokeStyle=enemy.snipeWarning>.4?'#b77931':'#c13f37';ctx.lineWidth=enemy.snipeWarning>.4?2:4;ctx.setLineDash(enemy.snipeWarning>.4?[12,9]:[]);ctx.beginPath();ctx.moveTo(enemy.x,enemy.y);ctx.lineTo(enemy.x+Math.cos(enemy.snipeAngle)*680,enemy.y+Math.sin(enemy.snipeAngle)*680);ctx.stroke();ctx.restore();
   }
   if(enemy.type==='healer')arc(enemy.x,enemy.y,enemy.r+7,'#d577aa',2);
-  if(['shield','sniper','healer','summoner','clock','printer'].includes(enemy.type)&&G.enemies.length<45)label(ENEMY_LABELS[enemy.type],enemy.x,enemy.y-enemy.r-30,14,'#5c453c','center');
+  if(['shield','sniper','healer','summoner','clock','printer'].includes(enemy.type)&&G.enemies.length<45)label(ENEMY_LABELS[enemy.type],enemy.x,enemy.y-enemy.r-30,W<900?17:14,'#5c453c','center');
 }
 function drawPaperShot(shot){
   ctx.save();ctx.translate(shot.x,shot.y);ctx.rotate(Math.atan2(shot.vy,shot.vx));ctx.fillStyle='#fff8e9';ctx.strokeStyle='#4f8ba1';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(16,0);ctx.lineTo(-13,-10);ctx.lineTo(-7,0);ctx.lineTo(-13,10);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();

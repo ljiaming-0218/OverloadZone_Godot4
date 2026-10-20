@@ -1,13 +1,4 @@
 'use strict';
-const OFFICE_EPISODES={
- opening:{title:'17:59 · 你刚拿起书包',lines:[['我','还有一分钟，我今天一定准点下班。'],['组长','就耽误大家五分钟。'],['摸鱼搭子','别信，他的五分钟是一个独立时区。'],['我','等一下，那个打印机为什么伸舌头了？']],choices:[['先灌咖啡','初始怒气 +20','mic'],['先装忙','初始护盾 +15','warm']]},
- 'boss-0':{title:'第一关 · 五分钟小会',lines:[['组长','大家简单同步一下，不用紧张。'],['我','那你为什么站在带轮子的椅子上？'],['组长','为了推动项目。'],['摸鱼搭子','红圈就是他的重点，别站重点上。']]},
- 'break-0':{title:'茶水间 · 战术性接水',lines:[['我','会议结束了？'],['摸鱼搭子','结束了，但是拉了三个新群。'],['我','行，那我这杯水接到退休。']]},
- 'boss-1':{title:'第二关 · 最后改一版',lines:[['总监','这个版本已经很好了。'],['我','你后面是不是还有一句“但是”？'],['总监','但是能不能把昨天删掉的加回来？'],['摸鱼搭子','看地上的预警线，急件要来了！']]},
- 'break-1':{title:'工位 · 需求突然活了',lines:[['我','需求文档刚才是不是眨眼了？'],['摸鱼搭子','它不仅眨眼，还把你的截止日期吃了。'],['我','纸箱都往门口跑了，我怎么还没下班？']]},
- 'boss-2':{title:'终局 · 老板画的大饼',lines:[['老板','年轻人，眼光要放长远一点。'],['我','长远到几点？'],['老板','先把这张饼吃了。'],['我','好的，我选择把桌子掀了。']]},
- ending:{title:'18:00 · 终于刷上门禁',lines:[['我','原来下班不是时间，是一种战斗结果。'],['摸鱼搭子','你先走，我给你发战报。'],['组长','明天我们——'],['我','已读。勿扰。']]},
-};
 const OFFICE_ENEMIES={runner:'尖叫鼠标',shooter:'复读喇叭',brute:'肥宅订书机',charger:'滑铲办公椅',conductor:'会议乌鸦',shield:'甩锅锅盖',sniper:'已读摄像头',healer:'鸡汤饮水机',summoner:'加戏复印机',clock:'追命闹钟',printer:'连环催稿机',box:'假装下班箱'};
 function chooseOfficeEnemy(time,roll=Math.random()){
  const pool=[['runner',4],['shooter',3]];
@@ -47,8 +38,8 @@ function cleanKillReward(){
 function drawOfficeWarning(e){
  if(e.clockWarning>0)arc(e.x,e.y,e.r+13,'#d67a37',3,0,TAU*(1-e.clockWarning/.8));
  if(e.printWarning>0){ctx.save();ctx.strokeStyle='#bb5547';ctx.lineWidth=2;ctx.setLineDash([10,8]);for(let j=-1;j<=1;j++){const a=e.printAngle+j*.14;ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.x+Math.cos(a)*480,e.y+Math.sin(a)*480);ctx.stroke()}ctx.restore()}
- if(e.boxState==='retreat')label('我先走了',e.x,e.y-e.r-16,14,'#815728','center');
- if(e.boxState==='tell'){ctx.save();ctx.strokeStyle='#ce7544';ctx.setLineDash([10,8]);ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.x+Math.cos(e.boxAngle)*320,e.y+Math.sin(e.boxAngle)*320);ctx.stroke();ctx.restore();label('骗你的',e.x,e.y-e.r-16,14,'#b24b42','center')}
+ if(e.boxState==='retreat')label('佯退',e.x,e.y-e.r-16,14,'#815728','center');
+ if(e.boxState==='tell'){ctx.save();ctx.strokeStyle='#ce7544';ctx.setLineDash([10,8]);ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.x+Math.cos(e.boxAngle)*320,e.y+Math.sin(e.boxAngle)*320);ctx.stroke();ctx.restore();label('反冲预警',e.x,e.y-e.r-16,14,'#b24b42','center')}
 }
 function drawOfficeProjectile(b){
  if(b.invoice){ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.atan2(b.vy,b.vx));rect(-11,-7,22,14,'#fff4dc','#b35846');label('急',0,4,11,'#ad4e3f','center',900);ctx.restore();return true}
@@ -65,14 +56,14 @@ function officeBossSpecial(e){
  if(e.attack%4!==0)return false;
  if(e.chapter===0){
    for(let i=0;i<3;i++){const a=i*TAU/3;addHazard({kind:'spawn',x:clamp(G.px+Math.cos(a)*310,-1420,1420),y:clamp(G.py+Math.sin(a)*310,-1020,1020),r:28,delay:1.3,life:.1,type:i===2?'charger':'clock'})}
-   notice('组长：全员开会，一个都别走！',2);
+   notice('交叉增援 · 优先击破闹钟',2);
  }else if(e.chapter===1){
    for(let j=-1;j<=1;j++)addHazard({kind:'blast',x:clamp(G.px+j*115,-1400,1400),y:clamp(G.py+j*35,-1000,1000),r:70,delay:1.3+Math.abs(j)*.2,life:.55,damage:20});
    const a=Math.atan2(G.py-e.y,G.px-e.x);for(let j=-2;j<=2;j++){const b=a+j*.2,bullet=hostileBullet(e.x,e.y,Math.cos(b),Math.sin(b),245,15);if(bullet)bullet.invoice=true}
-   notice('总监：需求回滚，急件三连！',2);
+   notice('错时轰炸 · 留意急件扇射',2);
  }else{
    addHazard({kind:'ring',x:G.px,y:G.py,r:240,inner:140,delay:1.5,life:.75,damage:27});
-   notice('老板画饼：躲进内圈，或者跑出外圈',2.5);
+   notice('环形封锁 · 内圈 / 外圈安全',2.5);
  }
  e.fire=2.8;return true;
 }

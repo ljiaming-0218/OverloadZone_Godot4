@@ -34,8 +34,8 @@
 
 ## 下班大作战更新
 
-新版入口仍为 `web/index.html`，保持 `web` 发布目录，整目录一起发布。新增 `office.js`、`assets/office-enemies.png`、`assets/office-bosses.png`、`assets/office-floor.png`；仍使用 `backstage-bodies.png` 与 `backstage-vfx.png`。无需变更构建命令。
+新版入口仍为 `web/index.html`，保持 `web` 发布目录，整目录一起发布。脚本为 `office.js`、`tactics.js`、`combat.js`、`campaign.js` 和 `game.js`，素材为 `assets/office-enemies.png`、`assets/office-bosses.png`、`assets/office-floor.png`；仍使用 `backstage-bodies.png` 与 `backstage-vfx.png`。无需变更构建命令。
 
-发布后确认首页显示「更换头像」和「看看同事发什么疯」。头像设置可导入本地照片、刷新保留、恢复姓名牌；沿用旧浏览器存储键，兼容旧版照片。更换域名或设备不会自动带走头像。开场跳过对白后仍保留初始选择；Boss 对白后恢复战斗，休息对白后进入遗物选择，胜利结尾后出现「打卡成功」。
+发布后确认首页保留「更换头像」，没有小剧场入口，点击开始直接战斗。头像设置可导入本地照片、刷新保留、恢复姓名牌；沿用旧浏览器存储键，兼容旧版照片。更换域名或设备不会自动带走头像。Boss 实时登场，前两场胜利直接选遗物，最终胜利直接出现「打卡成功」。
 
-暂停手册显示六条进化配方。实战可检查闹钟三圈弹、打印机三连急件、纸箱假撤退反冲与老板画饼的内外安全区。Godot 原型未同步这些浏览器版内容。
+暂停手册显示六条进化配方。实战检查锅盖护送、狙击锁定、治疗 / 召唤打断、乌鸦协同射击和 Boss 蓄力破招。Godot 原型未同步这些浏览器版内容。
