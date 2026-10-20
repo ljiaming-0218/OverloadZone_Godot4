@@ -1,46 +1,7 @@
 'use strict';
 // A fictional backstage comedy; dialogue never advances the combat clock.
-const EPISODES = {
-  opening:{title:'开场 · 谁把话筒放跑了',lines:[
-    ['舞台监督','排练开始！今天先练走位，谁也不许临时加戏。'],
-    ['马嘉祺','那只话筒为什么在自己跑？'],
-    ['丁程鑫','你不是说想要一个“会动的舞台”吗？'],
-    ['马嘉祺','会动也没让它追着我动啊。'],
-  ],choices:[['先试麦','开局共鸣 +20','mic'],['先热身','开局护盾 +15','warm']]},
-  'boss-0':{title:'第一幕 · 哥哥来检查',lines:[
-    ['丁程鑫','刚才是道具热身，现在换我检查你的走位。'],
-    ['马嘉祺','检查可以，先把反光板放下。'],
-    ['丁程鑫','别紧张，地上的红圈已经把答案画出来了。'],
-  ]},
-  'break-0':{title:'幕间 · 一杯咖啡的误会',lines:[
-    ['舞台监督','停！谁把冰美式放进了特效控制台？'],
-    ['马嘉祺','难怪我刚才感觉攻击带点苦。'],
-    ['丁程鑫','先挑个奖励，等会儿还有加练。'],
-  ]},
-  'boss-1':{title:'第二幕 · 机位追着跑',lines:[
-    ['场记','各机位准备——三、二、一！'],
-    ['马嘉祺','为什么镜头都在瞄准我？'],
-    ['丁程鑫','主角待遇。看到红线先走位，别原地摆造型。'],
-  ]},
-  'break-1':{title:'幕间 · 临时加戏',lines:[
-    ['马嘉祺','这回总能休息了吧？'],
-    ['舞台监督','导演说很好，再保一条。'],
-    ['丁程鑫','来，压轴之前先补个状态。'],
-    ['马嘉祺','“再保一条”到底是多少条啊？'],
-  ]},
-  'boss-2':{title:'压轴 · 最后一条',lines:[
-    ['舞台监督','最后一条，这次真的最后一条。'],
-    ['丁程鑫','把刚才学的都用上，别只顾着躲。'],
-    ['马嘉祺','行。话筒、咖啡、纸飞机——今天一个都别想下班。'],
-  ]},
-  ending:{title:'谢幕 · 今天可以收工了吗',lines:[
-    ['舞台监督','好，过了！'],
-    ['马嘉祺','我现在听到“再来一遍”都会自动冲刺。'],
-    ['丁程鑫','那明天继续。'],
-    ['马嘉祺','……先把我的冰美式还我。'],
-  ]},
-};
-const ENEMY_LABELS = {runner:'暴走话筒',shooter:'移动音箱',brute:'重装灯架',charger:'抢拍话筒',conductor:'节拍场记',shield:'反光板',sniper:'架机位',healer:'补妆粉扑',summoner:'加戏场记'};
+const EPISODES=OFFICE_EPISODES;
+const ENEMY_LABELS=OFFICE_ENEMIES;
 let activeEpisode=null;
 const portraitImages={ma:null,ding:null};
 function theatreState(){return {storySeen:{},skillVfx:[],coffeeTimer:3,paperTimer:1.2,portraitNote:false};}
@@ -50,11 +11,11 @@ function showEpisode(id,after,options={}){
   activeEpisode={id,index:0,after,reward:options.reward!==false,selecting:false,finished:false};
   state='story';overlay.classList.remove('hidden');renderEpisode();
 }
-function portraitMarkup(role){return `<div class="portrait-badge" data-portrait="${role}"><span>${role==='ma'?'马':role==='ding'?'丁':'场'}</span></div>`;}
+function portraitMarkup(role){return `<div class="portrait-badge" data-portrait="${role}"><span>${role==='ma'?'我':role==='ding'?'怪':'友'}</span></div>`;}
 function renderEpisode(){
   if(!activeEpisode)return;const episode=EPISODES[activeEpisode.id],line=episode.lines[activeEpisode.index];
-  const selecting=activeEpisode.selecting,role=line[0]==='丁程鑫'?'ding':line[0]==='马嘉祺'?'ma':'crew';
-  panel.innerHTML=`<div class="script-label">虚构后台小剧场</div><h1>${episode.title}</h1><div class="dialogue-stage">${portraitMarkup(role)}<div><strong>${selecting?'排练前的选择':line[0]}</strong><p>${selecting?'先做点什么？':line[1]}</p></div></div>${selecting?`<div class="story-choices">${episode.choices.map((item,i)=>`<button class="choice" data-branch="${i}"><strong>${item[0]}</strong><small>${item[1]}</small></button>`).join('')}</div>`:`<div class="dialogue-actions"><button class="secondary" id="story-skip">跳过对白</button><button class="mainbtn" id="story-next">${activeEpisode.index===episode.lines.length-1?(episode.choices?'做个选择':'继续排练'):'下一句'}</button></div>`}<p class="micro">对白为虚构创作 · 战斗已暂停${selecting?'':' · Enter 下一句 / Esc 跳过'}</p>`;
+  const selecting=activeEpisode.selecting,role=['组长','总监','老板'].includes(line[0])?'ding':line[0]==='我'?'ma':'crew';
+  panel.innerHTML=`<div class="script-label">虚构打工小剧场</div><h1>${episode.title}</h1><div class="dialogue-stage">${portraitMarkup(role)}<div><strong>${selecting?'下班前的选择':line[0]}</strong><p>${selecting?'先做点什么？':line[1]}</p></div></div>${selecting?`<div class="story-choices">${episode.choices.map((item,i)=>`<button class="choice" data-branch="${i}"><strong>${item[0]}</strong><small>${item[1]}</small></button>`).join('')}</div>`:`<div class="dialogue-actions"><button class="secondary" id="story-skip">跳过对白</button><button class="mainbtn" id="story-next">${activeEpisode.index===episode.lines.length-1?(episode.choices?'做个选择':'继续下班'):'下一句'}</button></div>`}<p class="micro">对白为虚构创作 · 战斗已暂停${selecting?'':' · Enter 下一句 / Esc 跳过'}</p>`;
   if(selecting)panel.querySelectorAll('[data-branch]').forEach(button=>button.onclick=()=>finishEpisode(Number(button.dataset.branch)));
   else{panel.querySelector('#story-next').onclick=nextEpisodeLine;panel.querySelector('#story-skip').onclick=skipEpisode}
   refreshPortraitBadges();
@@ -88,6 +49,7 @@ function extraEnemyDamage(enemy,damage,origin){
   return damage;
 }
 function updateBackstageEnemy(enemy,dt){
+  officeEnemyTick(enemy,dt);
   enemy.guardDown=Math.max(0,(enemy.guardDown||0)-dt);
   if(enemy.type==='sniper'&&enemy.snipeWarning>0){
     enemy.snipeWarning-=dt;enemy.moveLock=true;
@@ -98,6 +60,7 @@ function updateBackstageEnemy(enemy,dt){
   }
 }
 function backstageAttack(enemy){
+  if(['clock','printer'].includes(enemy.type)){officeEnemyAttack(enemy);return}
   if(enemy.type==='sniper'){
     enemy.snipeAngle=Math.atan2(G.py-enemy.y,G.px-enemy.x);enemy.snipeWarning=1.05;enemy.moveLock=true;enemy.fire=3.0;
   }else if(enemy.type==='healer'){
@@ -115,6 +78,7 @@ function skillEffect(kind,x,y,r=100,angle=0){
   G.skillVfx.push({kind,x,y,r,angle,t:duration,max:duration});
 }
 function tickTheatre(dt){
+  officeTick(dt);
   for(const effect of G.skillVfx)effect.t-=dt;G.skillVfx=G.skillVfx.filter(e=>e.t>0);
   G.coffeeTimer-=dt;G.paperTimer-=dt;
   if(G.up.coffee&&G.coffeeTimer<=0){
@@ -148,6 +112,7 @@ function drawSkillEffects(){
   }
 }
 function drawEnemyDetails(enemy){
+  drawOfficeWarning(enemy);
   if(enemy.type==='shield'&&!(enemy.guardDown>0)){
     const a=Math.atan2(G.py-enemy.y,G.px-enemy.x);arc(enemy.x,enemy.y,enemy.r+9,'#40a6bb',6,a-1.2,a+1.2);
   }
@@ -155,7 +120,7 @@ function drawEnemyDetails(enemy){
     ctx.save();ctx.strokeStyle='#d1544a';ctx.lineWidth=2;ctx.setLineDash([12,9]);ctx.beginPath();ctx.moveTo(enemy.x,enemy.y);ctx.lineTo(enemy.x+Math.cos(enemy.snipeAngle)*680,enemy.y+Math.sin(enemy.snipeAngle)*680);ctx.stroke();ctx.restore();
   }
   if(enemy.type==='healer')arc(enemy.x,enemy.y,enemy.r+7,'#d577aa',2);
-  if(['shield','sniper','healer','summoner'].includes(enemy.type)&&G.enemies.length<45)label(ENEMY_LABELS[enemy.type],enemy.x,enemy.y-enemy.r-30,14,'#5c453c','center');
+  if(['shield','sniper','healer','summoner','clock','printer'].includes(enemy.type)&&G.enemies.length<45)label(ENEMY_LABELS[enemy.type],enemy.x,enemy.y-enemy.r-30,14,'#5c453c','center');
 }
 function drawPaperShot(shot){
   ctx.save();ctx.translate(shot.x,shot.y);ctx.rotate(Math.atan2(shot.vy,shot.vx));ctx.fillStyle='#fff8e9';ctx.strokeStyle='#4f8ba1';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(16,0);ctx.lineTo(-13,-10);ctx.lineTo(-7,0);ctx.lineTo(-13,10);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
@@ -170,13 +135,13 @@ function drawPerformer(type,x,y,size,angle,hit){
   const headY=-size*.16,r=size*.27;circle(0,headY,r+4,'#fffaf0');circle(0,headY,r,color);
   if(image?.complete&&image.naturalWidth){
     ctx.save();ctx.beginPath();ctx.arc(0,headY,r,0,TAU);ctx.clip();const side=Math.min(image.naturalWidth,image.naturalHeight);ctx.drawImage(image,(image.naturalWidth-side)/2,(image.naturalHeight-side)/2,side,side,-r,headY-r,r*2,r*2);ctx.restore();
-  }else label(role==='ma'?'马':role==='ding'?'丁':'场',0,headY+r*.38,r*1.25,'#fffaf0','center',900);
+  }else label(role==='ma'?'我':role==='ding'?'怪':'友',0,headY+r*.38,r*1.25,'#fffaf0','center',900);
   ctx.restore();
 }
 function refreshPortraitBadges(){
   document.querySelectorAll('[data-portrait]').forEach(element=>{
     const image=portraitImages[element.dataset.portrait];element.querySelector('img')?.remove();
-    if(image?.complete&&image.naturalWidth){const img=document.createElement('img');img.src=image.src;img.alt=element.dataset.portrait==='ma'?'自选马嘉祺照片':'自选丁程鑫照片';element.append(img)}
+    if(image?.complete&&image.naturalWidth){const img=document.createElement('img');img.src=image.src;img.alt=element.dataset.portrait==='ma'?'我的自选照片':'头目自选照片';element.append(img)}
   });
 }
 function loadPortrait(role,data){
@@ -188,7 +153,7 @@ function initPortraits(){
 }
 function portraitSettings(){
   clearInput();state='settings';overlay.classList.remove('hidden');
-  panel.innerHTML=`<div class="script-label">头像设置</div><h1>用你认可的照片</h1><p class="sub">没有照片时显示姓名纸片；已移除不相像的生成脸。</p><div class="portrait-settings">${['ma','ding'].map(role=>`<div>${portraitMarkup(role)}<label>${role==='ma'?'马嘉祺':'丁程鑫'}<input type="file" accept="image/png,image/jpeg,image/webp" data-upload="${role}"></label><button class="secondary" data-clear="${role}">恢复姓名牌</button></div>`).join('')}</div><p class="micro" id="portrait-status">照片仅保存在当前浏览器，不会上传。建议选择正脸居中的图片，最大 5 MB。</p><button class="mainbtn" id="portrait-done">返回首页</button>`;
+  panel.innerHTML=`<div class="script-label">头像设置</div><h1>用你认可的照片</h1><p class="sub">自己上传头像，或者直接用「我」字纸片闯关。</p><div class="portrait-settings">${['ma','ding'].map(role=>`<div>${portraitMarkup(role)}<label>${role==='ma'?'我的头像':'头目头像（可选）'}<input type="file" accept="image/png,image/jpeg,image/webp" data-upload="${role}"></label><button class="secondary" data-clear="${role}">恢复姓名牌</button></div>`).join('')}</div><p class="micro" id="portrait-status">照片仅保存在当前浏览器，不会上传。建议选择正脸居中的图片，最大 5 MB。</p><button class="mainbtn" id="portrait-done">返回首页</button>`;
   panel.querySelectorAll('[data-upload]').forEach(input=>input.onchange=()=>importPortrait(input.dataset.upload,input.files?.[0]));
   panel.querySelectorAll('[data-clear]').forEach(button=>button.onclick=()=>{portraitImages[button.dataset.clear]=null;try{localStorage.removeItem('backstage-portrait-'+button.dataset.clear)}catch{}refreshPortraitBadges()});
   panel.querySelector('#portrait-done').onclick=themeIntro;refreshPortraitBadges();
