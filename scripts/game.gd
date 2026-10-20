@@ -318,7 +318,7 @@ func _update_projectiles(dt: float) -> void:
 		var b: Dictionary = friendly[i]
 		b["p"] += b["v"] * dt
 		b["ttl"] -= dt
-		var remove := b["ttl"] <= 0.0
+		var remove: bool = b["ttl"] <= 0.0
 		if not remove:
 			for e in enemies:
 				if not e["alive"] or b["hits"].has(e["id"]):
