@@ -2,7 +2,7 @@
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/ljiaming-0218/OverloadZone_Godot4)
 
-Q 版同人舞台幻想对决。操作马嘉祺，在舞台机关与音符弹幕中成长，挑战丁程鑫的三幕 Boss。角色是生成的风格化同人形象；游戏没有使用真人照片、歌曲录音或真人声音。
+真人风大头表情包同人舞台幻想对决。操作马嘉祺，在舞台机关与音符弹幕中成长，挑战丁程鑫的三幕 Boss。角色头像是 AI 生成的真人风夸张表情拼贴，搭配迷你舞台身体；不是本人实拍照片，游戏没有使用歌曲录音或真人声音。
 
 ## 浏览器 / 手机运行
 
