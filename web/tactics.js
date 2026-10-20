@@ -123,7 +123,7 @@ function tacticalEnemyTick(e,dt){
  }
  if(e.healCast>0){
    e.healCast=Math.max(0,e.healCast-dt);e.moveLock=true;
-   if(e.healCast<=0){for(const id of e.healTargets){const ally=findTacticalEnemy(id);if(ally?.live&&dist2(ally,e)<330**2){ally.hp=Math.min(ally.max,ally.hp+ally.max*.13);skillEffect('heal',ally.x,ally.y,65);G.beams.push({x:e.x,y:e.y,xx:ally.x,yy:ally.y,t:.22,color:'#aa719b'})}}e.recovery=.6}
+   if(e.healCast<=0){for(const id of e.healTargets){const ally=findTacticalEnemy(id);if(ally?.live&&dist2(ally,e)<330**2){ally.hp=Math.min(ally.max,ally.hp+ally.max*.13);skillEffect('heal',ally.x,ally.y,65);G.beams.push({x:e.x,y:e.y,xx:ally.x,yy:ally.y,t:.22,color:'#bfa1ff'})}}e.recovery=.6}
  }
  if(e.summonCast>0){e.summonCast=Math.max(0,e.summonCast-dt);e.moveLock=true;if(e.summonCast<=0)e.recovery=.6}
  if(e.commandCast>0){
@@ -135,7 +135,7 @@ function tacticalEnemyTick(e,dt){
      releaseCommand(e);e.commandIds=[];e.recovery=.8;
    }
  }
- if(e.bossCast>0){e.bossCast=Math.max(0,e.bossCast-dt);e.moveLock=true;if(e.bossCast<=0){officeBossSpecial(e);e.recovery=1.25}}
+ if(e.bossCast>0){e.bossCast=Math.max(0,e.bossCast-dt);e.moveLock=true;if(e.bossCast<=0){machineBossSpecial(e);e.recovery=1.25}}
 }
 function tacticalLine(a,b,color,width=2,dashed=true){
  ctx.save();ctx.strokeStyle=color;ctx.lineWidth=width;if(dashed)ctx.setLineDash([8,8]);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.restore();
@@ -143,28 +143,28 @@ function tacticalLine(a,b,color,width=2,dashed=true){
 function drawTacticalLinks(){
  for(const e of G.enemies){
    if(!e.live)continue;
-   if(e.type==='shield'&&!(e.guardDown>0)&&!(e.stagger>0)&&G.enemies.length<80){const ally=findTacticalEnemy(e.escortId);if(ally?.live&&dist2(e,ally)<170**2)tacticalLine(e,ally,e.coverFlash>0?'#226c7f':'#468f8977',e.coverFlash>0?5:2)}
-   if(e.healCast>0)for(const id of e.healTargets){const ally=findTacticalEnemy(id);if(ally?.live)tacticalLine(e,ally,'#a374a5',3)}
-   if(e.commandCast>0){const sources=e.commandIds.length?e.commandIds.map(findTacticalEnemy).filter(a=>a?.live&&a.commandedBy===e.id):[e];for(const ally of sources){if(ally!==e)tacticalLine(e,ally,'#b88d3b88');const a=Math.atan2(e.commandTarget.y-ally.y,e.commandTarget.x-ally.x);tacticalLine(ally,{x:ally.x+Math.cos(a)*650,y:ally.y+Math.sin(a)*650},e.commandCast>.35?'#c18c3b99':'#b45041',e.commandCast>.35?2:3,e.commandCast>.35)}}
+   if(e.type==='shield'&&!(e.guardDown>0)&&!(e.stagger>0)&&G.enemies.length<80){const ally=findTacticalEnemy(e.escortId);if(ally?.live&&dist2(e,ally)<170**2)tacticalLine(e,ally,e.coverFlash>0?'#a1f4ff':'#78e6ff88',e.coverFlash>0?5:2)}
+   if(e.healCast>0)for(const id of e.healTargets){const ally=findTacticalEnemy(id);if(ally?.live)tacticalLine(e,ally,'#bfa1ff',3)}
+   if(e.commandCast>0){const sources=e.commandIds.length?e.commandIds.map(findTacticalEnemy).filter(a=>a?.live&&a.commandedBy===e.id):[e];for(const ally of sources){if(ally!==e)tacticalLine(e,ally,'#ffc66e88');const a=Math.atan2(e.commandTarget.y-ally.y,e.commandTarget.x-ally.x);tacticalLine(ally,{x:ally.x+Math.cos(a)*650,y:ally.y+Math.sin(a)*650},e.commandCast>.35?'#ffc66ebb':'#ff8377',e.commandCast>.35?2:3,e.commandCast>.35)}}
  }
 }
 function drawTacticalDetails(e){
  if(e.type==='boss')return;
- let caption='',progress=0,color='#b07b30';
- if(e.stagger>0){caption='破招';progress=e.stagger/(e.type==='boss'?1.8:1.15);color='#3a8993'}
+ let caption='',progress=0,color='#ffc66e';
+ if(e.stagger>0){caption='破招';progress=e.stagger/(e.type==='boss'?1.8:1.15);color='#78e6ff'}
  else if(e.commandCast>0){caption='交叉火力 · 可打断';progress=1-e.commandCast/1.1}
  else if(e.healCast>0){caption='治疗 · 可打断';progress=1-e.healCast/.95}
  else if(e.summonCast>0){caption='夹击召唤 · 可打断';progress=1-e.summonCast/1.2}
- else if(e.snipeWarning>0){caption=e.snipeWarning>.4?'预判追踪':'已锁定';progress=1-e.snipeWarning/1.05;color=e.snipeWarning>.4?'#b07b30':'#b94e42'}
- else if(e.recovery>0){caption='破绽 +25%';progress=Math.min(1,e.recovery);color='#53866a'}
+ else if(e.snipeWarning>0){caption=e.snipeWarning>.4?'预判追踪':'已锁定';progress=1-e.snipeWarning/1.05;color=e.snipeWarning>.4?'#ffc66e':'#ff827b'}
+ else if(e.recovery>0){caption='破绽 +25%';progress=Math.min(1,e.recovery);color='#6bf5bb'}
  if(!caption)return;
  const y=e.y-e.r-59;label(caption,e.x,y,W<900?18:13,color,'center');bar(e.x-30,y+7,60,4,progress,color);
 }
 function drawBossTacticalHud(e,width,small,pad){
- let caption='',progress=0,color='#b07b30';
+ let caption='',progress=0,color='#ffc66e';
  if(e.bossCast>0){caption='蓄力 · 冲刺贴身 / 集火打断';progress=(e.castDamage||0)/e.breakThreshold}
- else if(e.stagger>0){caption='破招 · 承受伤害 +25%';progress=e.stagger/1.8;color='#3a8993'}
- else if(e.recovery>0){caption='破绽 · 承受伤害 +25%';progress=e.recovery/1.25;color='#53866a'}
+ else if(e.stagger>0){caption='破招 · 承受伤害 +25%';progress=e.stagger/1.8;color='#78e6ff'}
+ else if(e.recovery>0){caption='破绽 · 承受伤害 +25%';progress=e.recovery/1.25;color='#6bf5bb'}
  if(!caption)return;
  const bw=Math.min(width-pad*2,600),y=small?216:211;
  label(caption,width/2,y,small?14:16,color,'center');bar((width-bw)/2,y+8,bw,4,progress,color);

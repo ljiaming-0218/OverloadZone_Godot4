@@ -1,11 +1,11 @@
 'use strict';
-const OFFICE_ENEMIES={runner:'尖叫鼠标',shooter:'复读喇叭',brute:'肥宅订书机',charger:'滑铲办公椅',conductor:'会议乌鸦',shield:'甩锅锅盖',sniper:'已读摄像头',healer:'鸡汤饮水机',summoner:'加戏复印机',clock:'追命闹钟',printer:'连环催稿机',box:'假装下班箱'};
-function chooseOfficeEnemy(time,roll=Math.random()){
+const MACHINE_ENEMIES={runner:'追猎蜂',shooter:'双联炮隼',brute:'重装甲虫',charger:'突刺游隼',conductor:'中继指挥机',shield:'屏障守卫',sniper:'磁轨狙击机',healer:'纳米修复机',summoner:'折跃母巢',clock:'干扰环卫',printer:'三联轨道炮',box:'幽影伏击机'};
+function chooseMachineEnemy(time,roll=Math.random()){
  const pool=[['runner',4],['shooter',3]];
  for(const [type,at,weight] of [['shield',55,1],['clock',70,1.2],['charger',90,1.8],['sniper',110,1],['brute',160,1.6],['printer',210,1.1],['healer',230,.9],['conductor',300,1],['box',320,1.3],['summoner',350,.8]])if(time>=at)pool.push([type,weight]);
  let value=roll*pool.reduce((sum,item)=>sum+item[1],0);for(const [type,weight] of pool){value-=weight;if(value<0)return type}return pool.at(-1)[0];
 }
-function officeEnemyTick(e,dt){
+function updateMachineAbilities(e,dt){
  if(e.type==='clock'){
    e.clockWarning=Math.max(0,(e.clockWarning||0)-dt);
    if(e.ringBursts>0&&e.clockWarning<=0){e.ringTimer-=dt;if(e.ringTimer<=0){e.ringTimer=.3;e.ringBursts--;for(let i=0;i<8;i++){const a=i*TAU/8+e.ringBursts*.18;const bullet=hostileBullet(e.x,e.y,Math.cos(a),Math.sin(a),175+(3-e.ringBursts)*15,12);if(bullet)bullet.slow=1.3}}}
@@ -25,42 +25,42 @@ function officeEnemyTick(e,dt){
    }
  }
 }
-function officeEnemyAttack(e){
+function machineAttack(e){
  if(e.type==='clock'){e.clockWarning=.8;e.ringBursts=3;e.ringTimer=0;e.fire=4.4}
  if(e.type==='printer'){e.printWarning=.8;e.printRemaining=3;e.printTimer=0;e.printAngle=Math.atan2(G.py-e.y,G.px-e.x);e.moveLock=true;e.fire=4.6}
 }
-function officeState(){return{slowTimer:0,cleanKills:0,breakTime:0,breakCooldown:0};}
-function officeTick(dt){G.slowTimer=Math.max(0,G.slowTimer-dt);G.breakTime=Math.max(0,G.breakTime-dt);G.breakCooldown=Math.max(0,G.breakCooldown-dt)}
+function arsenalState(){return{slowTimer:0,cleanKills:0,breakTime:0,breakCooldown:0};}
+function tickArsenal(dt){G.slowTimer=Math.max(0,G.slowTimer-dt);G.breakTime=Math.max(0,G.breakTime-dt);G.breakCooldown=Math.max(0,G.breakCooldown-dt)}
 function cleanKillReward(){
  G.cleanKills=Math.min(20,G.cleanKills+1);
- if(G.cleanKills>=20&&G.breakCooldown<=0){G.cleanKills=0;G.breakCooldown=14;G.breakTime=3;G.shield=Math.min(75,G.shield+10);G.energy=Math.min(100,G.energy+12);notice('无伤处理 20 单 · 带薪摸鱼 3 秒',2.5);skillEffect('heal',G.px,G.py,100);sound('level')}
+ if(G.cleanKills>=20&&G.breakCooldown<=0){G.cleanKills=0;G.breakCooldown=14;G.breakTime=3;G.shield=Math.min(75,G.shield+10);G.energy=Math.min(100,G.energy+12);notice('无伤歼灭 20 台 · 自律超频 3 秒',2.5);skillEffect('heal',G.px,G.py,100);sound('level')}
 }
-function drawOfficeWarning(e){
- if(e.clockWarning>0)arc(e.x,e.y,e.r+13,'#d67a37',3,0,TAU*(1-e.clockWarning/.8));
- if(e.printWarning>0){ctx.save();ctx.strokeStyle='#bb5547';ctx.lineWidth=2;ctx.setLineDash([10,8]);for(let j=-1;j<=1;j++){const a=e.printAngle+j*.14;ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.x+Math.cos(a)*480,e.y+Math.sin(a)*480);ctx.stroke()}ctx.restore()}
- if(e.boxState==='retreat')label('佯退',e.x,e.y-e.r-16,14,'#815728','center');
- if(e.boxState==='tell'){ctx.save();ctx.strokeStyle='#ce7544';ctx.setLineDash([10,8]);ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.x+Math.cos(e.boxAngle)*320,e.y+Math.sin(e.boxAngle)*320);ctx.stroke();ctx.restore();label('反冲预警',e.x,e.y-e.r-16,14,'#b24b42','center')}
+function drawMachineWarning(e){
+ if(e.clockWarning>0)arc(e.x,e.y,e.r+13,'#ffc66e',3,0,TAU*(1-e.clockWarning/.8));
+ if(e.printWarning>0){ctx.save();ctx.strokeStyle='#ff827b';ctx.lineWidth=2;ctx.setLineDash([10,8]);for(let j=-1;j<=1;j++){const a=e.printAngle+j*.14;ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.x+Math.cos(a)*480,e.y+Math.sin(a)*480);ctx.stroke()}ctx.restore()}
+ if(e.boxState==='retreat')label('佯退',e.x,e.y-e.r-16,14,'#ffc66e','center');
+ if(e.boxState==='tell'){ctx.save();ctx.strokeStyle='#ffad70';ctx.setLineDash([10,8]);ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.x+Math.cos(e.boxAngle)*320,e.y+Math.sin(e.boxAngle)*320);ctx.stroke();ctx.restore();label('反冲预警',e.x,e.y-e.r-16,14,'#ff827b','center')}
 }
-function drawOfficeProjectile(b){
- if(b.invoice){ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.atan2(b.vy,b.vx));rect(-11,-7,22,14,'#fff4dc','#b35846');label('急',0,4,11,'#ad4e3f','center',900);ctx.restore();return true}
- if(b.slow){circle(b.x,b.y,b.r+2,'#fff4d6');arc(b.x,b.y,b.r+2,'#d28232',2);ctx.strokeStyle='#9e582a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(b.x,b.y-5);ctx.lineTo(b.x,b.y);ctx.lineTo(b.x+4,b.y+2);ctx.stroke();return true}
+function drawMachineProjectile(b){
+ if(b.invoice){ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.atan2(b.vy,b.vx));ctx.shadowColor='#ff506f';ctx.shadowBlur=9;polygon([[-13,-4],[8,-4],[16,0],[8,4],[-13,4]],'#ff758d');ctx.restore();return true}
+ if(b.slow){circle(b.x,b.y,b.r+4,'#a58aff22');arc(b.x,b.y,b.r+2,'#be9cff',2.5);circle(b.x,b.y,3,'#ebe0ff');return true}
  return false;
 }
-function drawOfficeBoss(x,y,size,angle,hit,chapter=0){
+function drawMachineBoss(x,y,size,angle,hit,chapter=0){
  if(!bossAtlas.complete||!bossAtlas.naturalWidth)return;
- const [sx,sw]=[[0,695],[695,625],[1320,852]][chapter]||[0,695],sh=bossAtlas.naturalHeight,scale=size/Math.max(sw,sh);ctx.save();ctx.translate(x,y);if(hit)ctx.globalAlpha=.65;ctx.drawImage(bossAtlas,sx,0,sw,sh,-sw*scale/2,-sh*scale/2,sw*scale,sh*scale);
- const image=portraitImages.ding;if(image?.complete&&image.naturalWidth){const r=size*.19,cy=-size*.16,side=Math.min(image.naturalWidth,image.naturalHeight);circle(0,cy,r+3,'#fff9e9');ctx.save();ctx.beginPath();ctx.arc(0,cy,r,0,TAU);ctx.clip();ctx.drawImage(image,(image.naturalWidth-side)/2,(image.naturalHeight-side)/2,side,side,-r,cy-r,2*r,2*r);ctx.restore()}
+ const sw=bossAtlas.naturalWidth/3,sh=bossAtlas.naturalHeight;ctx.save();ctx.translate(x,y);if(hit)ctx.globalAlpha=.65;ctx.drawImage(bossAtlas,chapter*sw,0,sw,sh,-size/2,-size/2,size,size);
+ const image=portraitImages.ding;if(image?.complete&&image.naturalWidth){const r=size*.15,cy=-size*.03,side=Math.min(image.naturalWidth,image.naturalHeight);circle(0,cy,r+3,'#b092ff');ctx.save();ctx.beginPath();ctx.arc(0,cy,r,0,TAU);ctx.clip();ctx.drawImage(image,(image.naturalWidth-side)/2,(image.naturalHeight-side)/2,side,side,-r,cy-r,2*r,2*r);ctx.restore()}
  ctx.restore();
 }
-function officeBossSpecial(e){
+function machineBossSpecial(e){
  if(e.attack%4!==0)return false;
  if(e.chapter===0){
    for(let i=0;i<3;i++){const a=i*TAU/3;addHazard({kind:'spawn',x:clamp(G.px+Math.cos(a)*310,-1420,1420),y:clamp(G.py+Math.sin(a)*310,-1020,1020),r:28,delay:1.3,life:.1,type:i===2?'charger':'clock'})}
-   notice('交叉增援 · 优先击破闹钟',2);
+   notice('交叉增援 · 优先击破干扰环卫',2);
  }else if(e.chapter===1){
    for(let j=-1;j<=1;j++)addHazard({kind:'blast',x:clamp(G.px+j*115,-1400,1400),y:clamp(G.py+j*35,-1000,1000),r:70,delay:1.3+Math.abs(j)*.2,life:.55,damage:20});
    const a=Math.atan2(G.py-e.y,G.px-e.x);for(let j=-2;j<=2;j++){const b=a+j*.2,bullet=hostileBullet(e.x,e.y,Math.cos(b),Math.sin(b),245,15);if(bullet)bullet.invoice=true}
-   notice('错时轰炸 · 留意急件扇射',2);
+   notice('错时轰炸 · 留意轨道弹扇射',2);
  }else{
    addHazard({kind:'ring',x:G.px,y:G.py,r:240,inner:140,delay:1.5,life:.75,damage:27});
    notice('环形封锁 · 内圈 / 外圈安全',2.5);

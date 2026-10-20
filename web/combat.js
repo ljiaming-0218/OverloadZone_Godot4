@@ -1,9 +1,9 @@
 'use strict';
 // Combat effects and local avatar storage. No dialogue or narrative state.
-const ENEMY_LABELS=OFFICE_ENEMIES;
+const ENEMY_LABELS=MACHINE_ENEMIES;
 const portraitImages={ma:null,ding:null};
-function combatState(){return {skillVfx:[],coffeeTimer:3,paperTimer:1.2};}
-function portraitMarkup(role){return `<div class="portrait-badge" data-portrait="${role}"><span>${role==='ma'?'我':role==='ding'?'怪':'友'}</span></div>`;}
+function combatState(){return {skillVfx:[],cryoTimer:3,discTimer:1.2};}
+function portraitMarkup(role){return `<div class="portrait-badge" data-portrait="${role}"><span class="portrait-default" role="img" aria-label="${role==='ma'?'默认驾驶员装甲':'默认敌方主核'}"></span></div>`;}
 function extraEnemyDamage(enemy,damage,origin){
   const source=origin||{x:G.px,y:G.py};
   if(enemy.type==='shield'){
@@ -15,39 +15,39 @@ function extraEnemyDamage(enemy,damage,origin){
   }
   return coverDamage(enemy,damage,origin);
 }
-function updateOfficeEnemy(enemy,dt){
+function updateCombatEnemy(enemy,dt){
   enemy.guardDown=Math.max(0,(enemy.guardDown||0)-dt);
   tacticalEnemyTick(enemy,dt);
   if(enemy.stagger>0)return;
-  officeEnemyTick(enemy,dt);
+  updateMachineAbilities(enemy,dt);
   if(enemy.recovery>0||enemy.commandedBy&&findTacticalEnemy(enemy.commandedBy)?.commandCast>0)enemy.moveLock=true;
 }
-function officeSupportAttack(enemy){
-  if(['clock','printer'].includes(enemy.type)){officeEnemyAttack(enemy);return}
+function supportAttack(enemy){
+  if(['clock','printer'].includes(enemy.type)){machineAttack(enemy);return}
   beginSupportCast(enemy);
 }
 function skillEffect(kind,x,y,r=100,angle=0){
   if(!G?.skillVfx||G.skillVfx.length>=48)return;
-  const duration={slash:.35,burst:.5,sonic:.75,heal:.7,coffee:1.2}[kind]||.5;
+  const duration={slash:.35,burst:.5,sonic:.75,heal:.7,cryo:1.2}[kind]||.5;
   G.skillVfx.push({kind,x,y,r,angle,t:duration,max:duration});
 }
 function tickCombat(dt){
-  officeTick(dt);tacticsTick(dt);
+  tickArsenal(dt);tacticsTick(dt);
   for(const effect of G.skillVfx)effect.t-=dt;G.skillVfx=G.skillVfx.filter(e=>e.t>0);
-  G.coffeeTimer-=dt;G.paperTimer-=dt;
-  if(G.up.coffee&&G.coffeeTimer<=0){
-    G.coffeeTimer=4;const r=120+25*G.up.coffee;
-    skillEffect('coffee',G.px,G.py,r);skillEffect('sonic',G.px,G.py,r);sound('chain');
-    for(const enemy of G.enemies)if(enemy.live&&dist2(enemy,{x:G.px,y:G.py})<(r+enemy.r)**2){enemy.slow=2;hurtEnemy(enemy,(25+12*G.up.coffee)*musicPower())}
-    if(G.evolutions.overtime)heal(3);
+  G.cryoTimer-=dt;G.discTimer-=dt;
+  if(G.up.cryo&&G.cryoTimer<=0){
+    G.cryoTimer=4;const r=120+25*G.up.cryo;
+    skillEffect('cryo',G.px,G.py,r);skillEffect('sonic',G.px,G.py,r);sound('chain');
+    for(const enemy of G.enemies)if(enemy.live&&dist2(enemy,{x:G.px,y:G.py})<(r+enemy.r)**2){enemy.slow=2;hurtEnemy(enemy,(25+12*G.up.cryo)*musicPower())}
+    if(G.evolutions.regen)heal(3);
   }
-  if(G.up.paper&&G.paperTimer<=0){
-    G.paperTimer=2.1;const target=G.enemies.find(e=>e.live&&dist2(e,{x:G.px,y:G.py})<600**2);
-    if(target&&G.shots.length<320){const a=Math.atan2(target.y-G.py,target.x-G.px);G.shots.push({x:G.px,y:G.py,vx:Math.cos(a)*560,vy:Math.sin(a)*560,t:3.5,pierce:0,hit:new Set(),damage:(20+G.up.paper*12)*musicPower(),paper:true,bounces:G.evolutions.receipt?6:2+G.up.paper})}
+  if(G.up.disc&&G.discTimer<=0){
+    G.discTimer=2.1;const target=G.enemies.find(e=>e.live&&dist2(e,{x:G.px,y:G.py})<600**2);
+    if(target&&G.shots.length<320){const a=Math.atan2(target.y-G.py,target.x-G.px);G.shots.push({x:G.px,y:G.py,vx:Math.cos(a)*560,vy:Math.sin(a)*560,t:3.5,pierce:0,hit:new Set(),damage:(20+G.up.disc*12)*musicPower(),disc:true,bounces:G.evolutions.ricochet?6:2+G.up.disc})}
   }
 }
-function bouncePaper(shot,enemy){
-  if(!shot.paper)return false;shot.bounces--;
+function bounceDisc(shot,enemy){
+  if(!shot.disc)return false;shot.bounces--;
   const target=G.enemies.filter(e=>e.live&&e!==enemy&&!shot.hit.has(e.id)&&dist2(e,enemy)<340**2).sort((a,b)=>dist2(a,enemy)-dist2(b,enemy))[0];
   if(shot.bounces<=0||!target)return false;
   const a=Math.atan2(target.y-shot.y,target.x-shot.x);shot.vx=Math.cos(a)*600;shot.vy=Math.sin(a)*600;shot.t=Math.max(shot.t,.6);skillEffect('slash',shot.x,shot.y,48,a);return true;
@@ -56,8 +56,8 @@ function drawSkillEffects(){
   for(const effect of G.skillVfx){
     const phase=1-effect.t/effect.max,size=effect.r*(.65+phase*.5)*2;
     ctx.save();ctx.translate(effect.x,effect.y);ctx.rotate(effect.angle);ctx.globalAlpha=Math.min(.7,effect.t/.2);
-    if(effect.kind==='coffee'){
-      circle(0,0,effect.r*(.5+phase*.45),'#8b603338');arc(0,0,effect.r*(.5+phase*.45),'#92683d',3);label('冰美式领域',0,-effect.r*.6,18,'#6c4028','center');
+    if(effect.kind==='cryo'){
+      circle(0,0,effect.r*(.5+phase*.45),'#66cfff28');arc(0,0,effect.r*(.5+phase*.45),'#78cfff',3);label('低温力场',0,-effect.r*.6,18,'#a5e9ff','center');
     }else if(effectAtlas.complete&&effectAtlas.naturalWidth){
       const cell={slash:[0,0],burst:[1,0],sonic:[0,1],heal:[1,1]}[effect.kind]||[0,0],sw=effectAtlas.naturalWidth/2,sh=effectAtlas.naturalHeight/2;
       ctx.drawImage(effectAtlas,cell[0]*sw,cell[1]*sh,sw,sh,-size/2,-size/2,size,size);
@@ -66,36 +66,30 @@ function drawSkillEffects(){
   }
 }
 function drawEnemyDetails(enemy){
-  drawOfficeWarning(enemy);drawTacticalDetails(enemy);
+  drawMachineWarning(enemy);drawTacticalDetails(enemy);
   if(enemy.type==='shield'&&!(enemy.guardDown>0)){
-    const a=enemy.guardAngle??Math.atan2(G.py-enemy.y,G.px-enemy.x);arc(enemy.x,enemy.y,enemy.r+9,'#40a6bb',6,a-1.2,a+1.2);
+    const a=enemy.guardAngle??Math.atan2(G.py-enemy.y,G.px-enemy.x);arc(enemy.x,enemy.y,enemy.r+9,'#78e6ff',6,a-1.2,a+1.2);
   }
   if(enemy.type==='sniper'&&enemy.snipeWarning>0){
-    ctx.save();ctx.strokeStyle=enemy.snipeWarning>.4?'#b77931':'#c13f37';ctx.lineWidth=enemy.snipeWarning>.4?2:4;ctx.setLineDash(enemy.snipeWarning>.4?[12,9]:[]);ctx.beginPath();ctx.moveTo(enemy.x,enemy.y);ctx.lineTo(enemy.x+Math.cos(enemy.snipeAngle)*680,enemy.y+Math.sin(enemy.snipeAngle)*680);ctx.stroke();ctx.restore();
+    ctx.save();ctx.strokeStyle=enemy.snipeWarning>.4?'#ffc66e':'#ff827b';ctx.lineWidth=enemy.snipeWarning>.4?2:4;ctx.setLineDash(enemy.snipeWarning>.4?[12,9]:[]);ctx.beginPath();ctx.moveTo(enemy.x,enemy.y);ctx.lineTo(enemy.x+Math.cos(enemy.snipeAngle)*680,enemy.y+Math.sin(enemy.snipeAngle)*680);ctx.stroke();ctx.restore();
   }
-  if(enemy.type==='healer')arc(enemy.x,enemy.y,enemy.r+7,'#d577aa',2);
-  if(['shield','sniper','healer','summoner','clock','printer'].includes(enemy.type)&&G.enemies.length<45)label(ENEMY_LABELS[enemy.type],enemy.x,enemy.y-enemy.r-30,W<900?17:14,'#5c453c','center');
+  if(enemy.type==='healer')arc(enemy.x,enemy.y,enemy.r+7,'#bfa1ff',2);
+  if(['shield','sniper','healer','summoner','clock','printer'].includes(enemy.type)&&G.enemies.length<45)label(ENEMY_LABELS[enemy.type],enemy.x,enemy.y-enemy.r-30,W<900?17:14,'#c3d5e3','center');
 }
-function drawPaperShot(shot){
-  ctx.save();ctx.translate(shot.x,shot.y);ctx.rotate(Math.atan2(shot.vy,shot.vx));ctx.fillStyle='#fff8e9';ctx.strokeStyle='#4f8ba1';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(16,0);ctx.lineTo(-13,-10);ctx.lineTo(-7,0);ctx.lineTo(-13,10);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+function drawDiscShot(shot){
+ ctx.save();ctx.translate(shot.x,shot.y);ctx.rotate(G.t*10);arc(0,0,13,'#a4edff',3,0,TAU*.8);arc(0,0,8,'#b79aff',3,Math.PI,Math.PI*2.7);circle(0,0,3,'#e8faff');ctx.restore();
 }
-function drawPerformer(type,x,y,size,angle,hit){
-  const role=type==='player'?'ma':'ding',image=portraitImages[role],color=role==='ma'?'#398e9d':'#c96351';
-  ctx.save();ctx.translate(x,y);if(hit)ctx.globalAlpha=.65;
-  if(bodyAtlas.complete&&bodyAtlas.naturalWidth){
-    ctx.save();if(Math.cos(angle)<0)ctx.scale(-1,1);const sw=bodyAtlas.naturalWidth/2;
-    ctx.drawImage(bodyAtlas,role==='ma'?0:sw,0,sw,bodyAtlas.naturalHeight,-size/2,-size/2,size,size);ctx.restore();
-  }
-  const headY=-size*.16,r=size*.27;circle(0,headY,r+4,'#fffaf0');circle(0,headY,r,color);
-  if(image?.complete&&image.naturalWidth){
-    ctx.save();ctx.beginPath();ctx.arc(0,headY,r,0,TAU);ctx.clip();const side=Math.min(image.naturalWidth,image.naturalHeight);ctx.drawImage(image,(image.naturalWidth-side)/2,(image.naturalHeight-side)/2,side,side,-r,headY-r,r*2,r*2);ctx.restore();
-  }else label(role==='ma'?'我':role==='ding'?'怪':'友',0,headY+r*.38,r*1.25,'#fffaf0','center',900);
-  ctx.restore();
+function drawPilot(type,x,y,size,angle,hit){
+ ctx.save();ctx.translate(x,y);if(hit)ctx.globalAlpha=.65;
+ if(bodyAtlas.complete&&bodyAtlas.naturalWidth){ctx.save();if(Math.cos(angle)<0)ctx.scale(-1,1);ctx.drawImage(bodyAtlas,-size/2,-size/2,size,size);ctx.restore()}
+ const image=portraitImages.ma;
+ if(image?.complete&&image.naturalWidth){const headY=-size*.26,r=size*.145;circle(0,headY,r+3,'#78e6ff');ctx.save();ctx.beginPath();ctx.arc(0,headY,r,0,TAU);ctx.clip();const side=Math.min(image.naturalWidth,image.naturalHeight);ctx.drawImage(image,(image.naturalWidth-side)/2,(image.naturalHeight-side)/2,side,side,-r,headY-r,r*2,r*2);ctx.restore()}
+ ctx.restore();
 }
 function refreshPortraitBadges(){
   document.querySelectorAll('[data-portrait]').forEach(element=>{
     const image=portraitImages[element.dataset.portrait];element.querySelector('img')?.remove();
-    if(image?.complete&&image.naturalWidth){const img=document.createElement('img');img.src=image.src;img.alt=element.dataset.portrait==='ma'?'我的自选照片':'头目自选照片';element.append(img)}
+    if(image?.complete&&image.naturalWidth){const img=document.createElement('img');img.src=image.src;img.alt=element.dataset.portrait==='ma'?'我的自选照片':'主核自选照片';element.append(img)}
   });
 }
 function loadPortrait(role,data){
@@ -106,8 +100,8 @@ function initPortraits(){
   for(const role of ['ma','ding']){try{const data=localStorage.getItem('backstage-portrait-'+role);if(data)loadPortrait(role,data)}catch{}}
 }
 function portraitSettings(){
-  clearInput();state='settings';overlay.classList.remove('hidden');
-  panel.innerHTML=`<div class="script-label">头像设置</div><h1>用你认可的照片</h1><p class="sub">自己上传头像，或者直接用「我」字纸片闯关。</p><div class="portrait-settings">${['ma','ding'].map(role=>`<div>${portraitMarkup(role)}<label>${role==='ma'?'我的头像':'头目头像（可选）'}<input type="file" accept="image/png,image/jpeg,image/webp" data-upload="${role}"></label><button class="secondary" data-clear="${role}">恢复姓名牌</button></div>`).join('')}</div><p class="micro" id="portrait-status">照片仅保存在当前浏览器，不会上传。建议选择正脸居中的图片，最大 5 MB。</p><button class="mainbtn" id="portrait-done">返回首页</button>`;
+  panel.className='panel';clearInput();state='settings';overlay.classList.remove('hidden');
+  panel.innerHTML=`<div class="script-label">头像设置</div><h1>驾驶员身份</h1><p class="sub">上传自己的头像，或使用默认机甲装甲。</p><div class="portrait-settings">${['ma','ding'].map(role=>`<div>${portraitMarkup(role)}<label>${role==='ma'?'驾驶员头像':'主核头像（可选）'}<input type="file" accept="image/png,image/jpeg,image/webp" data-upload="${role}"></label><button class="secondary" data-clear="${role}">恢复默认装甲</button></div>`).join('')}</div><p class="micro" id="portrait-status">照片仅保存在当前浏览器，不会上传。建议选择正脸居中的图片，最大 5 MB。</p><button class="mainbtn" id="portrait-done">返回首页</button>`;
   panel.querySelectorAll('[data-upload]').forEach(input=>input.onchange=()=>importPortrait(input.dataset.upload,input.files?.[0]));
   panel.querySelectorAll('[data-clear]').forEach(button=>button.onclick=()=>{portraitImages[button.dataset.clear]=null;try{localStorage.removeItem('backstage-portrait-'+button.dataset.clear)}catch{}refreshPortraitBadges()});
   panel.querySelector('#portrait-done').onclick=themeIntro;refreshPortraitBadges();
