@@ -26,9 +26,13 @@ const SKILLS = [
   {id:'orbit',name:'环绕音刃',tag:'近身',max:4,desc:'增加环绕音刃，冲刺时外扩；与舞步残影进化'},
   {id:'vamp',name:'返场修复',tag:'生存',max:3,desc:'每 18 次击破恢复生命，等级越高恢复越多'},
   {id:'pulse',name:'低音震场',tag:'范围',max:4,desc:'每 3.2 秒向四周释放低音音波并击退小怪'},
+  {id:'coffee',name:'冰美式领域',tag:'后台',max:4,desc:'每 4 秒洒出咖啡音场，范围伤害并减速 2 秒'},
+  {id:'paper',name:'纸飞机来信',tag:'弹射',max:4,desc:'每 2.1 秒发出纸飞机，在不同敌人之间弹射'},
   {id:'echo',name:'回声返照',tag:'身法',max:3,desc:'每次冲刺结束留下残影，延迟爆发伤害附近目标'},
 ];
 const RECIPES = [
+  {id:'overtime',name:'咖啡续命',a:'coffee',an:3,b:'vamp',bn:2,desc:'咖啡领域释放时恢复 3 点生命'},
+  {id:'receipt',name:'弹幕回执',a:'paper',an:3,b:'pierce',bn:2,desc:'纸飞机增加到六次弹射，并继承冰蓝尾音'},
   {id:'chorus',name:'极昼合唱',a:'rapid',an:3,b:'multi',bn:2,desc:'每轮向后补射和声，主音符伤害 +40%'},
   {id:'storm',name:'电音风暴',a:'chain',an:3,b:'bomb',bn:2,desc:'每 2.5 秒主动电弧打击五个目标，击破连锁也增强'},
   {id:'blade',name:'追光圆舞',a:'orbit',an:3,b:'dash',bn:2,desc:'音刃半径扩张、伤害翻倍，冲刺冷却额外缩短'},
@@ -50,13 +54,14 @@ function timeLabel(t){return `${String(Math.floor(t/60)).padStart(2,'0')}:${Stri
 function skillName(id){return SKILLS.find(s=>s.id===id)?.name||id;}
 function themeIntro(){
   menu(SHOW.title,'马嘉祺登场，挑战哥哥丁程鑫的三幕舞台。',
-    '<strong>冲刺吸弹 → 组合进化 → 十二分钟压轴对决</strong><br>第 3 / 7 / 12 分钟迎战 Boss；前两幕获胜后继续。<br>每 90 秒出现补给，靠近后按 E 或点「补给」。<br><span class="desktop-help">WASD 移动 · SPACE 冲刺 · Q 共鸣 · ESC 构筑手册</span><span class="touch-help">左侧摇杆移动 · 右侧冲刺 / 共鸣 · 自动射击</span>',
+    '<strong>后台小剧场 → 道具大乱斗 → 压轴对决</strong><br>第 3 / 7 / 12 分钟迎战 Boss；前两幕获胜后继续。<br>每 90 秒出现补给，靠近后按 E 或点「补给」。<br><span class="desktop-help">WASD 移动 · SPACE 冲刺 · Q 共鸣 · ESC 构筑手册</span><span class="touch-help">左侧摇杆移动 · 右侧冲刺 / 共鸣 · 自动射击</span>',
     '开始对决',()=>begin());
   const record=readRecord();
   panel.querySelector('.micro').textContent=`单局约 12–15 分钟 · ${record.wins||0} 次通关 · 最长 ${timeLabel(record.bestTime||0)}`;
   const selectors=document.createElement('div');selectors.className='difficulty';
   selectors.innerHTML=`<button data-mode="tour" aria-pressed="${selectedDifficulty==='tour'}">巡演<small>标准挑战 · 三幕成长</small></button><button data-mode="hard" aria-pressed="${selectedDifficulty==='hard'}">压轴<small>更密集弹幕 · 强化敌人</small></button>`;
   panel.querySelector('#action').before(selectors);
+  const extras=document.createElement('div');extras.className='menu-extras';extras.innerHTML='<button class="secondary" id="portrait-settings">更换头像</button><button class="secondary" id="skit-demo">看开场小剧场</button>';selectors.after(extras);panel.querySelector('#portrait-settings').onclick=portraitSettings;panel.querySelector('#skit-demo').onclick=()=>showEpisode('opening',themeIntro,{reward:false});refreshPortraitBadges();
   selectors.querySelectorAll('button').forEach(button=>button.onclick=()=>{
     selectedDifficulty=button.dataset.mode;
     selectors.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
@@ -107,23 +112,23 @@ function takeChoice(i){
   notice('已获得 · '+u.name.replace(/^\[.*?\]\s*/,''),2);announceEvolution();
   if(G.xp>=G.need)levelUp();
 }
-function heal(amount){const gained=Math.min(amount,G.maxhp-G.hp);G.hp+=gained;G.healing+=gained;}
+function heal(amount){const gained=Math.min(amount,G.maxhp-G.hp);G.hp+=gained;G.healing+=gained;if(gained>0)skillEffect('heal',G.px,G.py,75)}
 function bossDefeated(e){
   G.bossActive=false;G.bossesDefeated++;G.hostile=[];G.hazards=[];G.echoes=[];
   heal(20);G.energy=100;
   if(e.chapter===2){end(true);return}
   G.xp+=Math.ceil(G.need*.45);
-  offerChoices('幕间 · 舞台遗物',`${e.name} 已完成 · 时间暂停，选择一件永久遗物`,[
+  showEpisode('break-'+e.chapter,()=>offerChoices('幕间 · 舞台遗物',`${e.name} 已完成 · 时间暂停，选择一件永久遗物`,[
     {id:'power',kind:'relic',name:'高音徽章',desc:'全局伤害永久 +20%，适合远程与连锁构筑'},
     {id:'guard',kind:'relic',name:'守护应援',desc:'生命上限 +30、恢复 40 生命，获得 30 护盾'},
     {id:'tempo',kind:'relic',name:'节拍核心',desc:'永久射速 +15%，升级重选次数 +1'},
-  ]);
+  ]));
 }
 function startBoss(chapter){
   const data=SHOW.bosses[chapter];spawn('boss',clamp(G.px,-1250,1250),clamp(G.py-330,-800,800));
   const e=G.enemies.at(-1);Object.assign(e,{chapter,name:data.name,hp:data.hp*difficulty(),max:data.hp*difficulty(),phase:1,attack:0,fire:1.3,elite:false});
   G.bossIndex=chapter+1;G.bossActive=true;G.boss=true;
-  G.hostile=[];notice(data.name+' · 登场',3);sound('boom');
+  G.hostile=[];notice(data.name+' · 登场',3);sound('boom');showEpisode('boss-'+chapter,()=>{});
 }
 function waveEvent(){
   G.eventCount++;G.eventTimer=18;const kind=(G.eventCount-1)%3;
@@ -139,6 +144,7 @@ function spawnElite(){
 }
 function campaignTick(dt){
   if(G.bossIndex<3&&!G.bossActive&&G.t>=SHOW.bosses[G.bossIndex].at)startBoss(G.bossIndex);
+  if(state!=='playing')return;
   if(G.t>=G.nextEvent){G.nextEvent+=75;waveEvent()}
   G.eventTimer=Math.max(0,G.eventTimer-dt);
   if(G.t>=G.nextElite&&G.enemies.length<210){G.nextElite+=55;spawnElite()}
@@ -147,6 +153,9 @@ function campaignTick(dt){
   if(keys.has('e')&&nearSupply())openSupply();
   if(state!=='playing')return;
   updateHazards(dt);
+  if(state!=='playing')return;
+  tickTheatre(dt);
+  if(state!=='playing')return;
   updateAdvancedWeapons(dt);
   if(G.t>=SHOW.duration&&state==='playing')end(false);
 }
@@ -164,10 +173,15 @@ function spawnCampaignWave(){
     if(G.t>90&&roll>.75)type='charger';
     if(G.t>160&&roll>.62&&roll<=.75)type='brute';
     if(G.t>300&&roll<.12)type='conductor';
+    if(G.t>55&&roll>=.3&&roll<.40)type='shield';
+    if(G.t>110&&roll>=.40&&roll<.50)type='sniper';
+    if(G.t>230&&roll>=.50&&roll<.57)type='healer';
+    if(G.t>350&&roll>=.57&&roll<.62)type='summoner';
     const point=safeSpawnPoint(r);spawn(type,point.x,point.y);
   }
 }
 function updateEnemyStage(e,dt){
+  updateBackstageEnemy(e,dt);
   if(e.type==='charger'){
     e.chargeCD=(e.chargeCD??2)-dt;
     if(e.chargeCD<=0&&(e.chargeWarning||0)<=0&&(e.chargeRun||0)<=0){e.charges=(e.charges||0)+1;e.chargeWarning=.9;e.chargeAngle=Math.atan2(G.py-e.y,G.px-e.x);e.moveLock=true}
@@ -226,16 +240,16 @@ function updateAdvancedWeapons(dt){
   G.pulse-=dt;G.storm-=dt;
   if(G.up.pulse&&G.pulse<=0){
     G.pulse=Math.max(1.3,3.2-G.up.pulse*.24);const radius=135+G.up.pulse*24;
-    ring(G.px,G.py,radius,'#eac1ff',.5);sound('chain');
+    ring(G.px,G.py,radius,'#a771ca',.5);skillEffect('sonic',G.px,G.py,radius);sound('chain');
     for(const e of G.enemies)if(e.live&&dist2(e,{x:G.px,y:G.py})<(radius+e.r)**2){hurtEnemy(e,(18+12*G.up.pulse)*musicPower());if(e.type!=='boss'){const n=norm(e.x-G.px,e.y-G.py);e.x=clamp(e.x+n.x*38,-1450,1450);e.y=clamp(e.y+n.y*38,-1050,1050)}}
   }
   if(G.evolutions.storm&&G.storm<=0){
     G.storm=2.5;const targets=G.enemies.filter(e=>e.live&&dist2(e,{x:G.px,y:G.py})<470**2).sort((a,b)=>dist2(a,{x:G.px,y:G.py})-dist2(b,{x:G.px,y:G.py})).slice(0,5);
-    for(const e of targets){G.beams.push({x:G.px,y:G.py,xx:e.x,yy:e.y,t:.3});hurtEnemy(e,85*musicPower())}
+    for(const e of targets){skillEffect('burst',e.x,e.y,65);G.beams.push({x:G.px,y:G.py,xx:e.x,yy:e.y,t:.3});hurtEnemy(e,85*musicPower())}
   }
   if(G.hadDash&&G.dashTime<=0&&G.up.echo)G.echoes.push({x:G.px-G.dx*45,y:G.py-G.dy*45,t:.65});
   G.hadDash=G.dashTime>0;
-  for(const e of G.echoes){e.t-=dt;if(e.t<=0){const r=105+G.up.echo*25;ring(e.x,e.y,r,'#8eeeff',.35);for(const other of G.enemies)if(other.live&&dist2(other,e)<(r+other.r)**2)hurtEnemy(other,(35+G.up.echo*30)*musicPower())}}
+  for(const e of G.echoes){e.t-=dt;if(e.t<=0){const r=105+G.up.echo*25;ring(e.x,e.y,r,'#47a6b6',.35);skillEffect('slash',e.x,e.y,r);for(const other of G.enemies)if(other.live&&dist2(other,e)<(r+other.r)**2)hurtEnemy(other,(35+G.up.echo*30)*musicPower())}}
   G.echoes=G.echoes.filter(e=>e.t>0);
 }
 function themePause(){
@@ -245,14 +259,15 @@ function themePause(){
 }
 function themeEnd(win){
   if(state!=='playing'||G.ending)return;G.ending=true;saveRecord(win);clearInput();
-  menu(win?'压轴完成！':'本场谢幕',`${timeLabel(G.t)} · ${G.kills} 次击破 · 等级 ${G.lvl}`,
+  const showResult=()=>menu(win?'压轴完成！':'本场谢幕',`${timeLabel(G.t)} · ${G.kills} 次击破 · 等级 ${G.lvl}`,
     `<strong>${win?'马嘉祺完成了与哥哥丁程鑫的三幕舞台对决。':G.t>=SHOW.duration?'15 分钟已到，压轴挑战尚未完成。':'下次用冲刺化解弹幕，寻找预警区的空隙。'}</strong><br>完成 ${G.bossesDefeated}/3 场 Boss · ${Object.keys(G.evolutions).length} 项组合进化<br>吸弹 ${G.absorbed} 枚 · 共鸣 ${G.overloads} 次 · 最高爆发 ${G.bestBurst}<br>补给 ${G.supplyOpened} 次 · 遗物 ${G.relics.length} 件`,
     '再来一场',()=>themeIntro());
+  if(win)showEpisode('ending',showResult,{reward:false});else showResult();
 }
 function drawStageWorld(){
   // Warning geometry uses exactly the same radius / segment as the hit test.
   for(const h of G.hazards){
-    const active=h.age>=h.delay,color=h.kind==='spawn'?'#ffc972':'#ff709d';
+    const active=h.age>=h.delay,color=h.kind==='spawn'?'#ffc972':'#ce6154';
     ctx.save();ctx.strokeStyle=rgba(color,active?.9:.65);ctx.fillStyle=rgba(color,active?.32:.10);
     if(h.kind==='lane'){
       ctx.lineWidth=h.r*2;ctx.strokeStyle=rgba(color,active?.45:.12);ctx.beginPath();ctx.moveTo(h.x,h.y);ctx.lineTo(h.x2,h.y2);ctx.stroke();
@@ -270,12 +285,12 @@ function drawStageWorld(){
   for(const echo of G.echoes){ctx.save();ctx.globalAlpha=.35;sprite('player',echo.x,echo.y,90,0,false);ctx.restore();arc(echo.x,echo.y,48,'#9af5ff',2)}
 }
 function drawStageHud(width,height,small,pad){
-  label(SHOW.acts[actIndex()],width/2,small?153:148,small?16:18,'#d5c4ed','center');
+  label(SHOW.acts[actIndex()],width/2,small?153:148,small?16:18,'#715b4c','center');
   const boss=G.enemies.find(e=>e.live&&e.type==='boss');
   if(boss){
     const bw=Math.min(width-pad*2,600),left=(width-bw)/2;
-    label(`${boss.name} · 阶段 ${boss.phase||1}/3`,width/2,small?177:171,small?14:16,'#ffb8d1','center');
+    label(`${boss.name} · 阶段 ${boss.phase||1}/3`,width/2,small?177:171,small?14:16,'#9f4d4a','center');
     bar(left,small?187:182,bw,small?9:10,boss.hp/boss.max,'#ef558a');
-  }else if(G.eventTimer>0)label(`${G.eventName} · ${Math.ceil(G.eventTimer)}s`,width/2,small?182:176,small?14:16,'#ffd58c','center');
-  if(G.supplies.length)label(`补给 ${G.supplies.length} · ${G.bossesDefeated}/3 幕`,pad,height-(touchMode?230:80),small?14:15,'#ffd58c');
+  }else if(G.eventTimer>0)label(`${G.eventName} · ${Math.ceil(G.eventTimer)}s`,width/2,small?182:176,small?14:16,'#805621','center');
+  if(G.supplies.length)label(`补给 ${G.supplies.length} · ${G.bossesDefeated}/3 幕`,pad,height-(touchMode?230:80),small?14:15,'#805621');
 }
